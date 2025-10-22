@@ -1,63 +1,353 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Freduk CheckApp</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Freduk CheckApp — Verificador en tiempo real</title>
   <style>
-    body {
-      background-color: #000;
-      color: #39ff14;
-      font-family: 'Arial Black', sans-serif;
-      text-align: center;
-      padding-top: 100px;
+    :root{
+      --bg:#000;
+      --neon:#39ff14;
+      --muted:#0ff0fc;
+      --panel:#081008;
+      --card-bg:#071207;
+      --accent-dark:#163;
     }
-    input {
-      background: #111;
-      border: 2px solid #39ff14;
-      color: #39ff14;
-      padding: 10px;
-      border-radius: 10px;
-      width: 200px;
-      text-align: center;
+    body{
+      margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background:var(--bg); color:var(--neon); padding:22px;
     }
+    h1{ text-align:center; color:var(--neon); margin:4px 0 18px 0;
+        text-shadow:0 0 10px rgba(57,255,20,0.12), 0 0 20px rgba(57,255,20,0.06);
+        font-weight:700; letter-spacing:1px;
+    }
+    .container{ max-width:980px; margin:0 auto; }
+
+    .controls {
+      display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;
+    }
+    .mode {
+      background:#071107; border:1px solid rgba(57,255,20,0.08);
+      padding:8px 10px; border-radius:10px; display:flex; gap:8px; align-items:center;
+    }
+    label.small{ color:var(--muted); font-size:13px; display:block; margin-bottom:6px; }
+
+    textarea, input[type="text"], select {
+      width:100%; background:#050805; border:1px solid rgba(57,255,20,0.06); color:var(--neon);
+      padding:10px 12px; border-radius:10px; font-family: monospace; font-size:14px;
+    }
+    textarea{ height:160px; resize:vertical; }
+    .row{ display:flex; gap:12px; margin-top:10px; }
+    .col{ flex:1; min-width:0; }
+
     button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      border: none;
-      background: #39ff14;
-      color: #000;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
+      background:var(--neon); color:#000; border:none; padding:10px 14px; border-radius:10px;
+      cursor:pointer; font-weight:800; box-shadow:0 6px 18px rgba(57,255,20,0.06);
     }
-    button:hover {
-      box-shadow: 0 0 15px #39ff14;
-    }
-    #resultado {
-      margin-top: 20px;
-      font-size: 18px;
-      color: #0ff0fc;
+    button.ghost { background:transparent; color:var(--neon); border:1px solid rgba(57,255,20,0.08); }
+
+    .panels{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
+    .panel { background:var(--panel); border-radius:10px; padding:12px; border:1px solid rgba(57,255,20,0.04); min-height:160px; }
+    .panel .title{ font-weight:800; margin-bottom:8px; color:var(--neon); display:flex; justify-content:space-between; align-items:center; }
+
+    .three { grid-column: span 2; display:flex; gap:12px; }
+    .col-panel{ flex:1; }
+
+    .list { display:flex; flex-direction:column; gap:8px; max-height:380px; overflow:auto; padding-right:6px; }
+    .item { padding:8px 10px; border-radius:8px; color:#000; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+    .item .meta{ font-weight:600; color:#000; font-family:monospace; margin-right:8px;}
+    .live { background:#00c853; color:#021; }      /* verde */
+    .dead { background:#e53935; color:#200; }      /* rojo */
+    .unknown { background:#ffb703; color:#332100; }/* amarillo */
+
+    .small-muted{ color:#9fffcf; font-size:13px; margin-top:6px; }
+
+    .counters { display:flex; gap:10px; font-weight:800; margin-top:8px; }
+    .counter { padding:6px 8px; border-radius:8px; font-size:14px; }
+
+    /* responsive */
+    @media (max-width:800px){
+      .panels{ grid-template-columns: 1fr; }
+      .three{ flex-direction:column; }
     }
   </style>
 </head>
 <body>
-  <h1>💚 Fʀᴇᴅᴜᴋ CheckApp 💚</h1>
-  <input id="valor" placeholder="Introduce un valor">
-  <br>
-  <button onclick="verificar()">Verificar</button>
-  <div id="resultado"></div>
+  <div class="container">
+    <h1>💚 Freduk CheckApp — Verificador (Simulado / Tiempo real)</h1>
 
-  <script>
-    async function verificar() {
-      const value = document.getElementById("valor").value.trim();
-      if (!value) return alert("Introduce un valor");
+    <div class="controls">
+      <div style="flex:1; min-width:260px;">
+        <label class="small">Modo</label>
+        <select id="mode">
+          <option value="simulado">Simulado (1 petición, animado)</option>
+          <option value="realtime">Tiempo real (1 petición por tarjeta)</option>
+        </select>
+      </div>
 
-      const res = await fetch(`/api/check?value=${encodeURIComponent(value)}`);
-      const data = await res.json();
+      <div style="width:160px;">
+        <label class="small">Delay (ms)</label>
+        <input id="delay" type="text" value="400" />
+      </div>
 
-      document.getElementById("resultado").innerHTML = data.resultado || data.msg;
+      <div style="width:180px;">
+        <label class="small">Máx tarjetas</label>
+        <input id="maxcards" type="text" value="20" />
+      </div>
+
+      <div style="min-width:180px;">
+        <label class="small">BINs aceptados (opcional)</label>
+        <input id="bins" type="text" placeholder="453951,424242 (vacío = todos)" />
+      </div>
+    </div>
+
+    <label class="small">Pega tarjetas (una por línea). Usa '|' para añadir metadatos si quieres (ej: número|msg):</label>
+    <textarea id="cards" placeholder="4539511619543489
+4242424242424242
+378282246310005"></textarea>
+
+    <div class="row" style="margin-top:10px;">
+      <div style="flex:1; display:flex; gap:8px">
+        <button id="startBtn">Verificar lote</button>
+        <button id="stopBtn" class="ghost" disabled>Detener</button>
+        <button id="clearBtn" class="ghost">Limpiar</button>
+      </div>
+      <div style="width:220px; text-align:right;">
+        <div class="small-muted">Resultados en vivo serán agregados al panel a medida que lleguen.</div>
+      </div>
+    </div>
+
+    <div class="panels">
+      <div class="panel col-panel">
+        <div class="title"><span>🟩 Live</span><span id="liveCount">0</span></div>
+        <div id="liveList" class="list"></div>
+      </div>
+
+      <div class="panel col-panel">
+        <div class="title"><span>🟥 Dead</span><span id="deadCount">0</span></div>
+        <div id="deadList" class="list"></div>
+      </div>
+
+      <div class="three">
+        <div class="panel" style="flex:1">
+          <div class="title"><span>🟨 Unknown</span><span id="unknownCount">0</span></div>
+          <div id="unknownList" class="list"></div>
+        </div>
+
+        <div class="panel" style="flex:1">
+          <div class="title"><span>📋 Log / Estado</span><span id="totalCount">0</span></div>
+          <div id="logList" class="list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button id="exportAll">Descargar todo (.txt)</button>
+      <button id="exportLive" class="ghost">Descargar Live</button>
+      <button id="exportDead" class="ghost">Descargar Dead</button>
+      <button id="exportUnknown" class="ghost">Descargar Unknown</button>
+    </div>
+
+    <div class="small-muted" style="margin-top:12px;">
+      Nota: La clasificación Live/Dead/Unknown es simulada (aleatoria) y dependiente del endpoint. Respeta la ley y no uses tarjetas de terceros.
+    </div>
+  </div>
+
+<script>
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const cardsEl = document.getElementById('cards');
+  const binsEl = document.getElementById('bins');
+  const modeEl = document.getElementById('mode');
+  const delayEl = document.getElementById('delay');
+  const maxcardsEl = document.getElementById('maxcards');
+
+  const liveList = document.getElementById('liveList');
+  const deadList = document.getElementById('deadList');
+  const unknownList = document.getElementById('unknownList');
+  const logList = document.getElementById('logList');
+
+  const liveCount = document.getElementById('liveCount');
+  const deadCount = document.getElementById('deadCount');
+  const unknownCount = document.getElementById('unknownCount');
+  const totalCount = document.getElementById('totalCount');
+
+  const exportAllBtn = document.getElementById('exportAll');
+  const exportLiveBtn = document.getElementById('exportLive');
+  const exportDeadBtn = document.getElementById('exportDead');
+  const exportUnknownBtn = document.getElementById('exportUnknown');
+
+  let running = false;
+  let resultsStore = { live:[], dead:[], unknown:[], log:[] };
+
+  function resetResults() {
+    resultsStore = { live:[], dead:[], unknown:[], log:[] };
+    liveList.innerHTML = ''; deadList.innerHTML = ''; unknownList.innerHTML = ''; logList.innerHTML = '';
+    liveCount.textContent = '0'; deadCount.textContent = '0'; unknownCount.textContent = '0'; totalCount.textContent = '0';
+  }
+
+  function appendToPanel(panelEl, text, kind){
+    const div = document.createElement('div');
+    div.className = 'item ' + (kind==='live' ? 'live' : kind==='dead' ? 'dead' : 'unknown');
+    div.innerHTML = `<span class="meta">${text.split(' | ')[0]}</span><span>${text.split(' | ').slice(1).join(' | ')}</span>`;
+    panelEl.prepend(div);
+  }
+
+  function updateCounters(){
+    liveCount.textContent = resultsStore.live.length;
+    deadCount.textContent = resultsStore.dead.length;
+    unknownCount.textContent = resultsStore.unknown.length;
+    totalCount.textContent = resultsStore.live.length + resultsStore.dead.length + resultsStore.unknown.length;
+  }
+
+  function classifyAndShow(record) {
+    // record should be object like { tarjeta, estado } OR string "num | text"
+    let tarjeta, estado;
+    if (typeof record === 'string') {
+      const parts = record.split('|');
+      tarjeta = parts[0].trim();
+      estado = parts.slice(1).join(' | ').trim() || '';
+    } else {
+      tarjeta = record.tarjeta || '';
+      estado = record.estado || '';
     }
-  </script>
+    const lower = estado.toLowerCase();
+    if (lower.includes('live')) {
+      resultsStore.live.unshift({ tarjeta, estado });
+      appendToPanel(liveList, `${tarjeta} | ${estado}`, 'live');
+    } else if (lower.includes('dead')) {
+      resultsStore.dead.unshift({ tarjeta, estado });
+      appendToPanel(deadList, `${tarjeta} | ${estado}`, 'dead');
+    } else {
+      resultsStore.unknown.unshift({ tarjeta, estado });
+      appendToPanel(unknownList, `${tarjeta} | ${estado}`, 'unknown');
+    }
+    resultsStore.log.unshift({ tarjeta, estado });
+    const time = new Date().toLocaleTimeString();
+    appendToPanel(logList, `${time} | ${tarjeta} | ${estado}`, 'unknown');
+    updateCounters();
+  }
+
+  function downloadText(filename, content){
+    const blob = new Blob([content], { type:'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+  }
+
+  exportAllBtn.addEventListener('click', ()=>{
+    const all = [...resultsStore.live, ...resultsStore.dead, ...resultsStore.unknown];
+    if (all.length===0){ alert('No hay resultados'); return; }
+    const txt = all.map(r => `${r.tarjeta} | ${r.estado}`).join('\n');
+    downloadText('resultados_all.txt', txt);
+  });
+  exportLiveBtn.addEventListener('click', ()=> {
+    if (!resultsStore.live.length){ alert('No hay Live'); return; }
+    downloadText('live.txt', resultsStore.live.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
+  });
+  exportDeadBtn.addEventListener('click', ()=> {
+    if (!resultsStore.dead.length){ alert('No hay Dead'); return; }
+    downloadText('dead.txt', resultsStore.dead.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
+  });
+  exportUnknownBtn.addEventListener('click', ()=> {
+    if (!resultsStore.unknown.length){ alert('No hay Unknown'); return; }
+    downloadText('unknown.txt', resultsStore.unknown.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
+  });
+
+  clearBtn.addEventListener('click', ()=> {
+    if (running){ alert('Detén el proceso antes de limpiar'); return; }
+    cardsEl.value = ''; resetResults();
+  });
+
+  stopBtn.addEventListener('click', ()=> {
+    running = false;
+    stopBtn.disabled = true;
+    startBtn.disabled = false;
+  });
+
+  async function callApiBatch(cards, bins) {
+    // llamada única por lote al endpoint (simulado)
+    const q = encodeURIComponent(cards.join(','));
+    const binsQ = bins ? `&bins=${encodeURIComponent(bins)}` : '';
+    const url = `/api/check?value=${q}${binsQ}`;
+    const r = await fetch(url);
+    const json = await r.json();
+    // adaptamos resultado: json.resultados expected [{tarjeta, estado}, ...]
+    return json.resultados || [];
+  }
+
+  async function callApiSingle(card, bins) {
+    const q = encodeURIComponent(card);
+    const binsQ = bins ? `&bins=${encodeURIComponent(bins)}` : '';
+    const url = `/api/check?value=${q}${binsQ}`;
+    const r = await fetch(url);
+    const json = await r.json();
+    // si la API devuelve array o single:
+    if (Array.isArray(json.resultados)) {
+      return json.resultados[0] || { tarjeta: card, estado: '❌ Error respuesta' };
+    }
+    // fallback: expect { tarjeta, estado } or {results...}
+    return json.resultados ? json.resultados[0] : (json.result ? json.result : { tarjeta: card, estado: '❌ Error' });
+  }
+
+  startBtn.addEventListener('click', async ()=> {
+    if (running) return;
+    resetResults();
+    const mode = modeEl.value;
+    let delay = parseInt(delayEl.value, 10);
+    let maxcards = parseInt(maxcardsEl.value, 10);
+    if (Number.isNaN(delay) || delay < 50) delay = 300;
+    if (Number.isNaN(maxcards) || maxcards < 1) maxcards = 20;
+
+    let raw = cardsEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (raw.length === 0){ alert('Ingresa al menos 1 tarjeta'); return; }
+    raw = raw.slice(0, maxcards);
+    const bins = binsEl.value.trim();
+
+    running = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+
+    try {
+      if (mode === 'simulado') {
+        // 1 petición por lote, luego animamos resultados uno a uno
+        const batch = await callApiBatch(raw, bins);
+        for (const item of batch) {
+          if (!running) break;
+          // item can be {tarjeta, estado} or {input_masked, resultado} depending on API
+          let record;
+          if (item.tarjeta && item.estado) record = { tarjeta: item.tarjeta, estado: item.estado };
+          else if (item.input_masked && item.resultado) record = { tarjeta: item.input_masked, estado: item.resultado };
+          else record = { tarjeta: item.tarjeta || item.input || raw[0], estado: JSON.stringify(item) };
+          classifyAndShow(record);
+          await new Promise(r=>setTimeout(r, delay));
+        }
+      } else {
+        // realtime: una petición por tarjeta
+        for (const c of raw) {
+          if (!running) break;
+          const res = await callApiSingle(c, bins);
+          let record;
+          if (res.tarjeta && res.estado) record = res;
+          else if (res.input_masked && res.resultado) record = { tarjeta: res.input_masked, estado: res.resultado };
+          else record = { tarjeta: c, estado: JSON.stringify(res) };
+          classifyAndShow(record);
+          await new Promise(r=>setTimeout(r, delay));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error al procesar. Revisa la consola o el endpoint.');
+    } finally {
+      running = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  });
+
+  // inicializar
+  resetResults();
+</script>
 </body>
 </html>
