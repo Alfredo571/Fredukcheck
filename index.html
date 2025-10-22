@@ -1,353 +1,517 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Freduk CheckApp — Verificador en tiempo real</title>
+  <title>Freduk CheckApp — Lote + Braintree Sandbox (Real)</title>
   <style>
     :root{
       --bg:#000;
       --neon:#39ff14;
-      --muted:#0ff0fc;
+      --muted:#9fffcf;
       --panel:#081008;
-      --card-bg:#071207;
-      --accent-dark:#163;
     }
-    body{
-      margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background:var(--bg); color:var(--neon); padding:22px;
-    }
-    h1{ text-align:center; color:var(--neon); margin:4px 0 18px 0;
-        text-shadow:0 0 10px rgba(57,255,20,0.12), 0 0 20px rgba(57,255,20,0.06);
-        font-weight:700; letter-spacing:1px;
-    }
-    .container{ max-width:980px; margin:0 auto; }
-
-    .controls {
-      display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;
-    }
-    .mode {
-      background:#071107; border:1px solid rgba(57,255,20,0.08);
-      padding:8px 10px; border-radius:10px; display:flex; gap:8px; align-items:center;
-    }
-    label.small{ color:var(--muted); font-size:13px; display:block; margin-bottom:6px; }
-
-    textarea, input[type="text"], select {
-      width:100%; background:#050805; border:1px solid rgba(57,255,20,0.06); color:var(--neon);
-      padding:10px 12px; border-radius:10px; font-family: monospace; font-size:14px;
-    }
-    textarea{ height:160px; resize:vertical; }
-    .row{ display:flex; gap:12px; margin-top:10px; }
+    body{ margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:var(--neon); padding:20px; }
+    .container{ max-width:1100px; margin:0 auto; }
+    h1{ text-align:center; color:var(--neon); margin:2px 0 14px; text-shadow:0 0 8px rgba(57,255,20,0.12); }
+    .tabs{ display:flex; gap:8px; margin-bottom:14px; }
+    .tab{ padding:8px 12px; border-radius:8px; cursor:pointer; background:#070707; border:1px solid rgba(57,255,20,0.04); color:var(--neon); font-weight:700; }
+    .tab.active{ background:var(--neon); color:#000; box-shadow:0 6px 20px rgba(57,255,20,0.06); }
+    .panel { background:var(--panel); border-radius:10px; padding:12px; border:1px solid rgba(57,255,20,0.04); margin-bottom:12px; }
+    textarea, input[type="text"], select { width:100%; background:#050805; border:1px solid rgba(57,255,20,0.06); color:var(--neon); padding:10px 12px; border-radius:8px; font-family:monospace; }
+    textarea{ height:140px; resize:vertical; }
+    .row{ display:flex; gap:12px; margin-top:10px; flex-wrap:wrap; }
     .col{ flex:1; min-width:0; }
-
-    button {
-      background:var(--neon); color:#000; border:none; padding:10px 14px; border-radius:10px;
-      cursor:pointer; font-weight:800; box-shadow:0 6px 18px rgba(57,255,20,0.06);
-    }
-    button.ghost { background:transparent; color:var(--neon); border:1px solid rgba(57,255,20,0.08); }
-
+    button { background:var(--neon); color:#000; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:800; }
+    button.ghost { background:transparent; border:1px solid rgba(57,255,20,0.08); color:var(--neon); }
     .panels{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
-    .panel { background:var(--panel); border-radius:10px; padding:12px; border:1px solid rgba(57,255,20,0.04); min-height:160px; }
-    .panel .title{ font-weight:800; margin-bottom:8px; color:var(--neon); display:flex; justify-content:space-between; align-items:center; }
-
-    .three { grid-column: span 2; display:flex; gap:12px; }
-    .col-panel{ flex:1; }
-
-    .list { display:flex; flex-direction:column; gap:8px; max-height:380px; overflow:auto; padding-right:6px; }
-    .item { padding:8px 10px; border-radius:8px; color:#000; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
-    .item .meta{ font-weight:600; color:#000; font-family:monospace; margin-right:8px;}
-    .live { background:#00c853; color:#021; }      /* verde */
-    .dead { background:#e53935; color:#200; }      /* rojo */
-    .unknown { background:#ffb703; color:#332100; }/* amarillo */
-
-    .small-muted{ color:#9fffcf; font-size:13px; margin-top:6px; }
-
-    .counters { display:flex; gap:10px; font-weight:800; margin-top:8px; }
-    .counter { padding:6px 8px; border-radius:8px; font-size:14px; }
+    .panel-title{ display:flex; justify-content:space-between; align-items:center; font-weight:800; color:var(--neon); margin-bottom:8px; }
+    .list{ max-height:420px; overflow:auto; display:flex; flex-direction:column; gap:8px; padding-right:6px; }
+    .item{ display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:8px; color:#000; font-weight:700; }
+    .item .left{ display:flex; gap:10px; align-items:center; }
+    .item .card{ font-family:monospace; letter-spacing:1px; }
+    .live{ background:#00c853; }    /* verde */
+    .dead{ background:#e53935; }    /* rojo */
+    .unknown{ background:#ffb703; color:#2a2000; } /* amarillo */
+    .log-item{ background:#111; color:var(--neon); padding:8px; border-radius:8px; }
+    .small{ font-size:13px; color:var(--muted); }
+    .controls{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+    .counter-badges{ display:flex; gap:8px; margin-top:8px; font-weight:800; }
+    .badge{ padding:6px 8px; border-radius:8px; }
+    .badge.live{ color:#002b00; background:#00ff66; }
+    .badge.dead{ color:#2a0000; background:#ff6464; }
+    .badge.unknown{ color:#332100; background:#ffd86b; }
 
     /* responsive */
-    @media (max-width:800px){
+    @media (max-width:900px){
       .panels{ grid-template-columns: 1fr; }
-      .three{ flex-direction:column; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🐾 Freduk CheckApp — Verificador (Genpro)</h1>
+    <h1>🐾 Freduk CheckApp 🐾 — Genpro</h1>
 
-    <div class="controls">
-      <div style="flex:1; min-width:260px;">
-        <label class="small">Modo</label>
-        <select id="mode">
-          <option value="simulado">Simulado (1 petición, animado)</option>
-          <option value="realtime">Tiempo real (1 petición por tarjeta)</option>
-        </select>
-      </div>
-
-      <div style="width:160px;">
-        <label class="small">Delay (ms)</label>
-        <input id="delay" type="text" value="400" />
-      </div>
-
-      <div style="width:180px;">
-        <label class="small">Máx tarjetas</label>
-        <input id="maxcards" type="text" value="20" />
-      </div>
-
-      <div style="min-width:180px;">
-        <label class="small">BINs aceptados (opcional)</label>
-        <input id="bins" type="text" placeholder="453951,424242 (vacío = todos)" />
-      </div>
+    <div class="tabs">
+      <div id="tabLote" class="tab active">🔢 Lote (Real)</div>
+      <div id="tabSandbox" class="tab">🧠 Sandbox Drop-in</div>
     </div>
 
-    <label class="small">Pega tarjetas (una por línea). Usa '|' para añadir metadatos si quieres (ej: número|msg):</label>
-    <textarea id="cards" placeholder="4539511619543489
-4242424242424242
-378282246310005"></textarea>
+    <!-- LOTE PANEL -->
+    <div id="lotePanel" class="panel">
+      <div class="small">Pega hasta 20 tarjetas (una por línea). Formato recomendado: <code>PAN|MM|YYYY|CVV</code>. Ej: <code>4111111111111111|04|2027|123</code></div>
+      <textarea id="cardsArea" placeholder="4111111111111111|04|2027|123
+4000111111111115|04|2027|123"></textarea>
 
-    <div class="row" style="margin-top:10px;">
-      <div style="flex:1; display:flex; gap:8px">
-        <button id="startBtn">Verificar lote</button>
-        <button id="stopBtn" class="ghost" disabled>Detener</button>
-        <button id="clearBtn" class="ghost">Limpiar</button>
-      </div>
-      <div style="width:220px; text-align:right;">
-        <div class="small-muted">Resultados en vivo serán agregados al panel a medida que lleguen.</div>
-      </div>
-    </div>
-
-    <div class="panels">
-      <div class="panel col-panel">
-        <div class="title"><span>🟩 Live</span><span id="liveCount">0</span></div>
-        <div id="liveList" class="list"></div>
-      </div>
-
-      <div class="panel col-panel">
-        <div class="title"><span>🟥 Dead</span><span id="deadCount">0</span></div>
-        <div id="deadList" class="list"></div>
-      </div>
-
-      <div class="three">
-        <div class="panel" style="flex:1">
-          <div class="title"><span>🟨 Unknown</span><span id="unknownCount">0</span></div>
-          <div id="unknownList" class="list"></div>
+      <div class="row">
+        <div style="width:160px;">
+          <label class="small">Delay (ms) entre tarjetas</label>
+          <input id="delayInput" type="text" value="600" />
         </div>
-
-        <div class="panel" style="flex:1">
-          <div class="title"><span>📋 Log / Estado</span><span id="totalCount">0</span></div>
-          <div id="logList" class="list"></div>
+        <div style="width:120px;">
+          <label class="small">Máx</label>
+          <input id="maxInput" type="text" value="20" />
+        </div>
+        <div style="flex:1;">
+          <label class="small">BINs aceptados (opcional, coma-separated)</label>
+          <input id="binsInput" type="text" placeholder="453951,424242 (vacío = todos)" />
         </div>
       </div>
+
+      <div class="controls">
+        <button id="startBatchBtn">Verificar Lote (Real)</button>
+        <button id="stopBatchBtn" class="ghost" disabled>Detener</button>
+        <button id="clearBatchBtn" class="ghost">Limpiar</button>
+      </div>
+
+      <div class="counter-badges">
+        <div class="badge live">Live: <span id="cntLive">0</span></div>
+        <div class="badge dead">Dead: <span id="cntDead">0</span></div>
+        <div class="badge unknown">Unknown: <span id="cntUnknown">0</span></div>
+        <div class="small" style="margin-left:auto">Procesadas: <span id="cntTotal">0</span></div>
+      </div>
+
+      <div class="panels">
+        <div class="panel">
+          <div class="panel-title"><span>🟩 Live</span><span id="liveCount">0</span></div>
+          <div id="liveList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title"><span>🟥 Dead</span><span id="deadCount">0</span></div>
+          <div id="deadList" class="list"></div>
+        </div>
+
+        <div style="grid-column: 1 / span 2; display:flex; gap:12px;">
+          <div class="panel" style="flex:1">
+            <div class="panel-title"><span>🟨 Unknown</span><span id="unknownCount">0</span></div>
+            <div id="unknownList" class="list"></div>
+          </div>
+
+          <div class="panel" style="flex:1">
+            <div class="panel-title"><span>📋 Log</span><span id="logCount">0</span></div>
+            <div id="logList" class="list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="downloadAll">Descargar todo (.txt)</button>
+        <button id="downloadLive" class="ghost">Descargar Live</button>
+        <button id="downloadDead" class="ghost">Descargar Dead</button>
+        <button id="downloadUnknown" class="ghost">Descargar Unknown</button>
+      </div>
+
+      <div class="small" style="margin-top:8px; color:#ffcc66">
+        ⚠️ Atención: en modo **Real (lote)** este formulario enviará los números PIN/CVV al servidor (solo usar en SANDBOX para pruebas). No usar datos reales en entornos públicos.
+      </div>
     </div>
 
-    <div style="display:flex; gap:8px; margin-top:12px;">
-      <button id="exportAll">Descargar todo (.txt)</button>
-      <button id="exportLive" class="ghost">Descargar Live</button>
-      <button id="exportDead" class="ghost">Descargar Dead</button>
-      <button id="exportUnknown" class="ghost">Descargar Unknown</button>
+    <!-- SANDBOX DROP-IN -->
+    <div id="sandboxPanel" class="panel" style="display:none;">
+      <div class="small">Modo Sandbox con Braintree Drop-in (tokenización segura). No se envía PAN al servidor directamente: el cliente obtiene un nonce y el servidor lo verifica.</div>
+
+      <div style="margin-top:10px;">
+        <div id="dropin-container"></div>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <button id="verifyDropinBtn">Verificar (Drop-in)</button>
+          <button id="destroyDropinBtn" class="ghost">Reiniciar Drop-in</button>
+        </div>
+        <div id="dropinResult" style="margin-top:8px;"></div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="small">Resultados rápidos (Drop-in se agregan a paneles):</div>
+      </div>
     </div>
 
-    <div class="small-muted" style="margin-top:12px;">
-      Nota: La clasificación Live/Dead/Unknown es simulada (aleatoria) y dependiente del endpoint. Respeta la ley y no uses tarjetas de terceros.
-    </div>
   </div>
 
-<script>
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn = document.getElementById('stopBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const cardsEl = document.getElementById('cards');
-  const binsEl = document.getElementById('bins');
-  const modeEl = document.getElementById('mode');
-  const delayEl = document.getElementById('delay');
-  const maxcardsEl = document.getElementById('maxcards');
+  <!-- Braintree Drop-in -->
+  <script src="https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js"></script>
 
-  const liveList = document.getElementById('liveList');
-  const deadList = document.getElementById('deadList');
-  const unknownList = document.getElementById('unknownList');
-  const logList = document.getElementById('logList');
+  <script>
+    // --------------------------
+    // Variables / estado global
+    // --------------------------
+    let running = false;
+    let rawCards = [];           // guardamos localmente lo pegado
+    let indexToOriginal = {};    // índice -> original completo
+    let resultsStore = { live:[], dead:[], unknown:[], log:[] };
 
-  const liveCount = document.getElementById('liveCount');
-  const deadCount = document.getElementById('deadCount');
-  const unknownCount = document.getElementById('unknownCount');
-  const totalCount = document.getElementById('totalCount');
+    // DOM
+    const tabLote = document.getElementById('tabLote');
+    const tabSandbox = document.getElementById('tabSandbox');
+    const lotePanel = document.getElementById('lotePanel');
+    const sandboxPanel = document.getElementById('sandboxPanel');
 
-  const exportAllBtn = document.getElementById('exportAll');
-  const exportLiveBtn = document.getElementById('exportLive');
-  const exportDeadBtn = document.getElementById('exportDead');
-  const exportUnknownBtn = document.getElementById('exportUnknown');
+    // Lote DOM
+    const cardsArea = document.getElementById('cardsArea');
+    const delayInput = document.getElementById('delayInput');
+    const maxInput = document.getElementById('maxInput');
+    const binsInput = document.getElementById('binsInput');
+    const startBatchBtn = document.getElementById('startBatchBtn');
+    const stopBatchBtn = document.getElementById('stopBatchBtn');
+    const clearBatchBtn = document.getElementById('clearBatchBtn');
 
-  let running = false;
-  let resultsStore = { live:[], dead:[], unknown:[], log:[] };
+    const cntLive = document.getElementById('cntLive');
+    const cntDead = document.getElementById('cntDead');
+    const cntUnknown = document.getElementById('cntUnknown');
+    const cntTotal = document.getElementById('cntTotal');
 
-  function resetResults() {
-    resultsStore = { live:[], dead:[], unknown:[], log:[] };
-    liveList.innerHTML = ''; deadList.innerHTML = ''; unknownList.innerHTML = ''; logList.innerHTML = '';
-    liveCount.textContent = '0'; deadCount.textContent = '0'; unknownCount.textContent = '0'; totalCount.textContent = '0';
-  }
+    const liveList = document.getElementById('liveList');
+    const deadList = document.getElementById('deadList');
+    const unknownList = document.getElementById('unknownList');
+    const logList = document.getElementById('logList');
 
-  function appendToPanel(panelEl, text, kind){
-    const div = document.createElement('div');
-    div.className = 'item ' + (kind==='live' ? 'live' : kind==='dead' ? 'dead' : 'unknown');
-    div.innerHTML = `<span class="meta">${text.split(' | ')[0]}</span><span>${text.split(' | ').slice(1).join(' | ')}</span>`;
-    panelEl.prepend(div);
-  }
+    const downloadAll = document.getElementById('downloadAll');
+    const downloadLive = document.getElementById('downloadLive');
+    const downloadDead = document.getElementById('downloadDead');
+    const downloadUnknown = document.getElementById('downloadUnknown');
 
-  function updateCounters(){
-    liveCount.textContent = resultsStore.live.length;
-    deadCount.textContent = resultsStore.dead.length;
-    unknownCount.textContent = resultsStore.unknown.length;
-    totalCount.textContent = resultsStore.live.length + resultsStore.dead.length + resultsStore.unknown.length;
-  }
+    // Sandbox DOM
+    const dropinContainer = document.getElementById('dropin-container');
+    const verifyDropinBtn = document.getElementById('verifyDropinBtn');
+    const destroyDropinBtn = document.getElementById('destroyDropinBtn');
+    const dropinResult = document.getElementById('dropinResult');
 
-  function classifyAndShow(record) {
-    // record should be object like { tarjeta, estado } OR string "num | text"
-    let tarjeta, estado;
-    if (typeof record === 'string') {
-      const parts = record.split('|');
-      tarjeta = parts[0].trim();
-      estado = parts.slice(1).join(' | ').trim() || '';
-    } else {
-      tarjeta = record.tarjeta || '';
-      estado = record.estado || '';
+    // Braintree
+    let dropinInstance = null;
+
+    // --------------------------
+    // UI: tabs
+    // --------------------------
+    tabLote.addEventListener('click', ()=> { tabLote.classList.add('active'); tabSandbox.classList.remove('active'); lotePanel.style.display='block'; sandboxPanel.style.display='none'; });
+    tabSandbox.addEventListener('click', ()=> { tabSandbox.classList.add('active'); tabLote.classList.remove('active'); lotePanel.style.display='none'; sandboxPanel.style.display='block'; });
+
+    // --------------------------
+    // Helpers: UI + data
+    // --------------------------
+    function resetResults() {
+      resultsStore = { live:[], dead:[], unknown:[], log:[] };
+      liveList.innerHTML = ''; deadList.innerHTML = ''; unknownList.innerHTML = ''; logList.innerHTML = '';
+      cntLive.textContent = '0'; cntDead.textContent = '0'; cntUnknown.textContent = '0'; cntTotal.textContent = '0';
     }
-    const lower = estado.toLowerCase();
-    if (lower.includes('live')) {
-      resultsStore.live.unshift({ tarjeta, estado });
-      appendToPanel(liveList, `${tarjeta} | ${estado}`, 'live');
-    } else if (lower.includes('dead')) {
-      resultsStore.dead.unshift({ tarjeta, estado });
-      appendToPanel(deadList, `${tarjeta} | ${estado}`, 'dead');
-    } else {
-      resultsStore.unknown.unshift({ tarjeta, estado });
-      appendToPanel(unknownList, `${tarjeta} | ${estado}`, 'unknown');
+
+    function downloadText(filename, content) {
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      setTimeout(()=> { URL.revokeObjectURL(url); a.remove(); }, 600);
     }
-    resultsStore.log.unshift({ tarjeta, estado });
-    const time = new Date().toLocaleTimeString();
-    appendToPanel(logList, `${time} | ${tarjeta} | ${estado}`, 'unknown');
-    updateCounters();
-  }
 
-  function downloadText(filename, content){
-    const blob = new Blob([content], { type:'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
-  }
-
-  exportAllBtn.addEventListener('click', ()=>{
-    const all = [...resultsStore.live, ...resultsStore.dead, ...resultsStore.unknown];
-    if (all.length===0){ alert('No hay resultados'); return; }
-    const txt = all.map(r => `${r.tarjeta} | ${r.estado}`).join('\n');
-    downloadText('resultados_all.txt', txt);
-  });
-  exportLiveBtn.addEventListener('click', ()=> {
-    if (!resultsStore.live.length){ alert('No hay Live'); return; }
-    downloadText('live.txt', resultsStore.live.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
-  });
-  exportDeadBtn.addEventListener('click', ()=> {
-    if (!resultsStore.dead.length){ alert('No hay Dead'); return; }
-    downloadText('dead.txt', resultsStore.dead.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
-  });
-  exportUnknownBtn.addEventListener('click', ()=> {
-    if (!resultsStore.unknown.length){ alert('No hay Unknown'); return; }
-    downloadText('unknown.txt', resultsStore.unknown.map(r=>`${r.tarjeta} | ${r.estado}`).join('\n'));
-  });
-
-  clearBtn.addEventListener('click', ()=> {
-    if (running){ alert('Detén el proceso antes de limpiar'); return; }
-    cardsEl.value = ''; resetResults();
-  });
-
-  stopBtn.addEventListener('click', ()=> {
-    running = false;
-    stopBtn.disabled = true;
-    startBtn.disabled = false;
-  });
-
-  async function callApiBatch(cards, bins) {
-    // llamada única por lote al endpoint (simulado)
-    const q = encodeURIComponent(cards.join(','));
-    const binsQ = bins ? `&bins=${encodeURIComponent(bins)}` : '';
-    const url = `/api/check?value=${q}${binsQ}`;
-    const r = await fetch(url);
-    const json = await r.json();
-    // adaptamos resultado: json.resultados expected [{tarjeta, estado}, ...]
-    return json.resultados || [];
-  }
-
-  async function callApiSingle(card, bins) {
-    const q = encodeURIComponent(card);
-    const binsQ = bins ? `&bins=${encodeURIComponent(bins)}` : '';
-    const url = `/api/check?value=${q}${binsQ}`;
-    const r = await fetch(url);
-    const json = await r.json();
-    // si la API devuelve array o single:
-    if (Array.isArray(json.resultados)) {
-      return json.resultados[0] || { tarjeta: card, estado: '❌ Error respuesta' };
+    function maskNumberFull(num) {
+      const s = String(num).replace(/\D/g,'');
+      if (s.length <= 10) return s.replace(/\d/g,'*');
+      const first6 = s.slice(0,6);
+      const last4 = s.slice(-4);
+      const mid = '*'.repeat(Math.max(0, s.length - 10));
+      return `${first6}${mid}${last4}`;
     }
-    // fallback: expect { tarjeta, estado } or {results...}
-    return json.resultados ? json.resultados[0] : (json.result ? json.result : { tarjeta: card, estado: '❌ Error' });
-  }
 
-  startBtn.addEventListener('click', async ()=> {
-    if (running) return;
-    resetResults();
-    const mode = modeEl.value;
-    let delay = parseInt(delayEl.value, 10);
-    let maxcards = parseInt(maxcardsEl.value, 10);
-    if (Number.isNaN(delay) || delay < 50) delay = 300;
-    if (Number.isNaN(maxcards) || maxcards < 1) maxcards = 20;
+    function appendToPanel(panelEl, maskedText, estadoText, kind, originalCard = null) {
+      const div = document.createElement('div');
+      div.className = 'item ' + (kind === 'live' ? 'live' : kind === 'dead' ? 'dead' : 'unknown');
 
-    let raw = cardsEl.value.split('\n').map(s=>s.trim()).filter(Boolean);
-    if (raw.length === 0){ alert('Ingresa al menos 1 tarjeta'); return; }
-    raw = raw.slice(0, maxcards);
-    const bins = binsEl.value.trim();
+      const left = document.createElement('div'); left.className = 'left';
+      const cardSpan = document.createElement('div'); cardSpan.className = 'card'; cardSpan.textContent = maskedText;
+      const estadoSpan = document.createElement('div'); estadoSpan.className = 'small'; estadoSpan.textContent = estadoText;
 
-    running = true;
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
+      left.appendChild(cardSpan);
+      left.appendChild(estadoSpan);
 
-    try {
-      if (mode === 'simulado') {
-        // 1 petición por lote, luego animamos resultados uno a uno
-        const batch = await callApiBatch(raw, bins);
-        for (const item of batch) {
-          if (!running) break;
-          // item can be {tarjeta, estado} or {input_masked, resultado} depending on API
-          let record;
-          if (item.tarjeta && item.estado) record = { tarjeta: item.tarjeta, estado: item.estado };
-          else if (item.input_masked && item.resultado) record = { tarjeta: item.input_masked, estado: item.resultado };
-          else record = { tarjeta: item.tarjeta || item.input || raw[0], estado: JSON.stringify(item) };
-          classifyAndShow(record);
-          await new Promise(r=>setTimeout(r, delay));
+      const right = document.createElement('div');
+      right.style.display='flex'; right.style.gap='8px';
+
+      // Mostrar / Ocultar
+      const showBtn = document.createElement('button'); showBtn.textContent='Mostrar'; showBtn.style.padding='6px'; showBtn.style.borderRadius='6px';
+      // Copiar
+      const copyBtn = document.createElement('button'); copyBtn.textContent='Copiar'; copyBtn.style.padding='6px'; copyBtn.style.borderRadius='6px';
+
+      let revealed = false;
+      showBtn.addEventListener('click', () => {
+        if (!originalCard) return alert('Número completo no disponible localmente.');
+        revealed = !revealed;
+        cardSpan.textContent = revealed ? originalCard : maskedText;
+        showBtn.textContent = revealed ? 'Ocultar' : 'Mostrar';
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        const toCopy = originalCard || maskedText;
+        try {
+          await navigator.clipboard.writeText(toCopy);
+          copyBtn.textContent = 'Copiado';
+          setTimeout(()=> copyBtn.textContent='Copiar', 1000);
+        } catch (e) {
+          const ta = document.createElement('textarea'); ta.value = toCopy; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+          copyBtn.textContent = 'Copiado'; setTimeout(()=> copyBtn.textContent='Copiar', 1000);
         }
-      } else {
-        // realtime: una petición por tarjeta
-        for (const c of raw) {
-          if (!running) break;
-          const res = await callApiSingle(c, bins);
-          let record;
-          if (res.tarjeta && res.estado) record = res;
-          else if (res.input_masked && res.resultado) record = { tarjeta: res.input_masked, estado: res.resultado };
-          else record = { tarjeta: c, estado: JSON.stringify(res) };
-          classifyAndShow(record);
-          await new Promise(r=>setTimeout(r, delay));
+      });
+
+      right.appendChild(showBtn);
+      right.appendChild(copyBtn);
+
+      div.appendChild(left);
+      div.appendChild(right);
+      // prepend to show newest first
+      panelEl.prepend(div);
+    }
+
+    function updateCounters() {
+      cntLive.textContent = String(resultsStore.live.length);
+      cntDead.textContent = String(resultsStore.dead.length);
+      cntUnknown.textContent = String(resultsStore.unknown.length);
+      cntTotal.textContent = String(resultsStore.live.length + resultsStore.dead.length + resultsStore.unknown.length);
+      document.getElementById('liveCount').textContent = String(resultsStore.live.length);
+      document.getElementById('deadCount').textContent = String(resultsStore.dead.length);
+      document.getElementById('unknownCount').textContent = String(resultsStore.unknown.length);
+      document.getElementById('logCount').textContent = String(resultsStore.log.length);
+    }
+
+    function classifyAndShow(resultObj, originalFromInput = null) {
+      // resultObj: { masked, estado, detalle, input }
+      const masked = resultObj.masked || resultObj.tarjeta || resultObj.input_masked || resultObj.input || '';
+      const estadoText = resultObj.estado || resultObj.resultado || resultObj.detalle || (resultObj.ok ? 'Live' : 'Dead');
+      const lower = String(estadoText).toLowerCase();
+
+      // determine kind
+      let kind = 'unknown';
+      if (lower.includes('live')) kind = 'live';
+      else if (lower.includes('dead')) kind = 'dead';
+      else kind = 'unknown';
+
+      // find original: originalFromInput if provided, else use index matching heuristics (last4)
+      let original = originalFromInput || null;
+      if (!original) {
+        const last4 = String(masked).slice(-4);
+        for (const v of rawCards) {
+          if (String(v).trim().endsWith(last4)) { original = v; break; }
         }
       }
-    } catch (err) {
-      console.error(err);
-      alert('Error al procesar. Revisa la consola o el endpoint.');
-    } finally {
-      running = false;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
-  });
 
-  // inicializar
-  resetResults();
-</script>
+      // store and render
+      resultsStore[kind].unshift({ masked, estado: estadoText, original });
+      resultsStore.log.unshift({ masked, estado: estadoText, original, time: new Date().toLocaleTimeString() });
+
+      appendToPanel(kind === 'live' ? liveList : kind === 'dead' ? deadList : unknownList, masked, estadoText, kind, original);
+      appendToPanel(logList, (new Date().toLocaleTimeString() + ' | ' + masked + ' | ' + estadoText), estadoText, 'log', original);
+
+      updateCounters();
+    }
+
+    // --------------------------
+    // Braintree Drop-in (Sandbox)
+    // --------------------------
+    async function initDropin() {
+      try {
+        const t = await fetch('/api/client-token');
+        const tj = await t.json();
+        if (!tj.ok) { dropinResult.innerText = 'No se pudo obtener client token'; return; }
+
+        dropinInstance = await new Promise((resolve, reject) => {
+          braintree.dropin.create({
+            authorization: tj.clientToken,
+            container: '#dropin-container'
+          }, (err, instance) => {
+            if (err) return reject(err);
+            resolve(instance);
+          });
+        });
+      } catch (e) {
+        console.error('initDropin error', e);
+        dropinResult.innerText = 'Error inicializando Drop-in';
+      }
+    }
+
+    verifyDropinBtn.addEventListener('click', async () => {
+      if (!dropinInstance) { dropinResult.innerText = 'Drop-in no inicializado'; return; }
+      dropinResult.innerText = 'Procesando...';
+      dropinInstance.requestPaymentMethod(async (err, payload) => {
+        if (err) { dropinResult.innerText = 'Error al leer tarjeta: ' + (err.message || err); return; }
+        try {
+          const r = await fetch('/api/verify-braintree', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({ paymentMethodNonce: payload.nonce })
+          });
+          const data = await r.json();
+          if (data.ok && data.estado === 'Live') {
+            dropinResult.innerHTML = '<div style="padding:8px;border-radius:8px;background:#00c853;color:#001">✅ Live — ' + (data.detalle || '') + '</div>';
+            // add to LIVE panel (no original available)
+            classifyAndShow({ masked: 'Tokenized card', estado: '✅ Live | ' + (data.detalle || '') }, null);
+          } else {
+            dropinResult.innerHTML = '<div style="padding:8px;border-radius:8px;background:#e53935;color:#100">❌ Dead — ' + (data.msg || data.detalle || 'Rejected') + '</div>';
+            classifyAndShow({ masked: 'Tokenized card', estado: '❌ Dead | ' + (data.msg || data.detalle || '') }, null);
+          }
+        } catch (e) {
+          console.error(e);
+          dropinResult.innerText = 'Error en verificación';
+        }
+      });
+    });
+
+    destroyDropinBtn.addEventListener('click', async () => {
+      if (dropinInstance) {
+        try { dropinInstance.teardown(() => { dropinInstance = null; dropinContainer.innerHTML = ''; initDropin(); }); }
+        catch(e){ console.warn('teardown', e); dropinContainer.innerHTML = ''; dropinInstance = null; initDropin(); }
+      } else { initDropin(); }
+    });
+
+    // init on load
+    initDropin();
+
+    // --------------------------
+    // BATCH (Real per-card requests)
+    // --------------------------
+    async function callVerifyBatchSingle(cardString) {
+      // cardString formato "PAN|MM|YYYY|CVV" o similar
+      try {
+        const r = await fetch('/api/verify-braintree-batch', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ cards: [cardString] })
+        });
+        return await r.json();
+      } catch (e) {
+        console.error('callVerifyBatchSingle error', e);
+        return { ok:false, msg: 'Error de conexión' };
+      }
+    }
+
+    startBatchBtn.addEventListener('click', async () => {
+      if (running) return;
+      resetResults();
+
+      let delay = parseInt(delayInput.value || '400', 10);
+      if (Number.isNaN(delay) || delay < 50) delay = 400;
+      let max = parseInt(maxInput.value || '20', 10);
+      if (Number.isNaN(max) || max < 1) max = 20;
+
+      let raw = cardsArea.value.split('\n').map(s=>s.trim()).filter(Boolean);
+      if (raw.length === 0) { alert('Pega al menos 1 tarjeta.'); return; }
+      raw = raw.slice(0, max);
+
+      // guardar copia y mapa índice->original
+      rawCards = raw.slice();
+      indexToOriginal = {};
+      rawCards.forEach((r,i)=> indexToOriginal[i] = r);
+
+      const binsRaw = binsInput.value.trim();
+      const binsSet = binsRaw ? new Set(binsRaw.split(',').map(b=>b.trim())) : null;
+
+      running = true;
+      startBatchBtn.disabled = true;
+      stopBatchBtn.disabled = false;
+
+      for (let i = 0; i < raw.length; i++) {
+        if (!running) break;
+        const cardLine = raw[i];
+        // si binsSet definido, quick-check bin
+        const pan = String(cardLine).split('|')[0].replace(/\D/g,'');
+        const bin = pan.slice(0,6);
+        if (binsSet && !binsSet.has(bin)) {
+          // marcar como unknown/BIN not allowed
+          classifyAndShow({ masked: maskNumberFull(pan), estado: `⚠️ BIN no permitido (${bin})` }, cardLine);
+          await new Promise(r=>setTimeout(r, delay));
+          continue;
+        }
+
+        // llamar al endpoint (envía 1 tarjeta en un array)
+        const resp = await callVerifyBatchSingle(cardLine);
+        if (!resp.ok && resp.resultados && Array.isArray(resp.resultados)) {
+          // edge: sometimes ok true but resultados present
+        }
+        // resp may be { ok:true, total:1, resultados: [...] } or { ok:false, msg: ...}
+        if (resp.ok && Array.isArray(resp.resultados)) {
+          const item = resp.resultados[0];
+          // item has { input, masked, estado, detalle, ok }
+          const masked = item.masked || (item.input ? (item.input.slice(0,6) + '*'.repeat(Math.max(0, item.input.length-10)) + item.input.slice(-4)) : maskNumberFull(pan));
+          const estado = item.estado || (item.ok ? 'Live' : 'Dead');
+          classifyAndShow({ masked, estado: `${estado} | ${item.detalle || ''}`, input: item.input }, cardLine);
+        } else if (resp.ok && resp.resultados === undefined && resp.resultado) {
+          // fallback older formats
+          classifyAndShow({ masked: maskNumberFull(pan), estado: String(resp.resultado) || 'Dead' }, cardLine);
+        } else if (resp.ok === false && resp.msg) {
+          classifyAndShow({ masked: maskNumberFull(pan), estado: '❌ Error: ' + resp.msg }, cardLine);
+        } else {
+          // unknown fallback
+          classifyAndShow({ masked: maskNumberFull(pan), estado: '⚠️ Respuesta inválida' }, cardLine);
+        }
+
+        await new Promise(r=>setTimeout(r, delay));
+      }
+
+      running = false;
+      startBatchBtn.disabled = false;
+      stopBatchBtn.disabled = true;
+    });
+
+    stopBatchBtn.addEventListener('click', ()=> {
+      running = false;
+      startBatchBtn.disabled = false;
+      stopBatchBtn.disabled = true;
+    });
+
+    clearBatchBtn.addEventListener('click', ()=> {
+      if (running) { alert('Detén el proceso antes de limpiar'); return; }
+      cardsArea.value = ''; rawCards = []; indexToOriginal = {}; resetResults();
+    });
+
+    // --------------------------
+    // DOWNLOADS
+    // --------------------------
+    downloadAll.addEventListener('click', ()=> {
+      const all = [...resultsStore.live, ...resultsStore.dead, ...resultsStore.unknown];
+      if (!all.length) { alert('No hay resultados'); return; }
+      const txt = all.map(r => `${r.original || r.masked} | ${r.estado}`).join('\n');
+      downloadText('resultados_all.txt', txt);
+    });
+    downloadLive.addEventListener('click', ()=> {
+      if (!resultsStore.live.length) { alert('No hay Live'); return; }
+      downloadText('live.txt', resultsStore.live.map(r=>`${r.original || r.masked} | ${r.estado}`).join('\n'));
+    });
+    downloadDead.addEventListener('click', ()=> {
+      if (!resultsStore.dead.length) { alert('No hay Dead'); return; }
+      downloadText('dead.txt', resultsStore.dead.map(r=>`${r.original || r.masked} | ${r.estado}`).join('\n'));
+    });
+    downloadUnknown.addEventListener('click', ()=> {
+      if (!resultsStore.unknown.length) { alert('No hay Unknown'); return; }
+      downloadText('unknown.txt', resultsStore.unknown.map(r=>`${r.original || r.masked} | ${r.estado}`).join('\n'));
+    });
+
+    // Inicializar contadores (vacia)
+    resetResults();
+
+    // Helper: maskNumberFull used above
+    function maskNumberFull(num) {
+      const s = String(num).replace(/\D/g,'');
+      if (!s) return '';
+      if (s.length <= 10) return s.replace(/\d/g,'*');
+      const first6 = s.slice(0,6);
+      const last4 = s.slice(-4);
+      const middle = '*'.repeat(Math.max(0, s.length - 10));
+      return `${first6}${middle}${last4}`;
+    }
+  </script>
 </body>
 </html>
