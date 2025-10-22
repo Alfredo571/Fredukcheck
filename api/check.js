@@ -1,13 +1,23 @@
 export default function handler(req, res) {
-  const { valor } = req.query;
+  const { value } = req.query;
 
-  if (!valor) {
-    return res.status(400).json({ error: "Falta el parámetro 'valor'" });
+  // Validar que se envíe el parámetro
+  if (!value) {
+    return res.status(400).json({ ok: false, msg: "Falta el parámetro 'value'" });
   }
 
-  if (valor === "freduk") {
-    res.status(200).json({ ok: true, mensaje: "✅ Valor verificado correctamente" });
+  // Verificar si el valor es "freduk"
+  let resultado;
+  if (value.toLowerCase() === "freduk") {
+    resultado = "✅ Valor verificado correctamente";
   } else {
-    res.status(200).json({ ok: false, mensaje: "❌ Valor incorrecto o no reconocido" });
+    resultado = "❌ Valor incorrecto o no reconocido";
   }
+
+  // Responder en formato JSON
+  res.status(200).json({
+    ok: true,
+    input: value,
+    resultado,
+  });
 }
