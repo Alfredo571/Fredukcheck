@@ -1,7 +1,8 @@
 {
   "name": "freduk-checkapp",
   "version": "1.0.0",
-  "scripts": {
-    "start": "vercel dev"
+  "private": true,
+  "dependencies": {
+    "braintree": "^3.0.0"
   }
 }
