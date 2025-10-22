@@ -1,0 +1,139 @@
+// api/verify-braintree-batch.js
+// WARNING: Este endpoint acepta PANs en el body. Úsalo SOLO en SANDBOX para pruebas.
+// En producción NO envíes PAN/CVV a tu servidor sin tokenización y cumplimiento PCI.
+
+const braintree = require("braintree");
+
+const gateway = new braintree.BraintreeGateway({
+  environment: braintree.Environment.Sandbox,
+  merchantId: process.env.BRAINTREE_MERCHANT_ID,
+  publicKey: process.env.BRAINTREE_PUBLIC_KEY,
+  privateKey: process.env.BRAINTREE_PRIVATE_KEY
+});
+
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, msg: "Método no permitido" });
+  }
+
+  try {
+    const contentType = req.headers['content-type'] || '';
+    let body = req.body;
+
+    // Vercel/Node sometimes gives parsed body; si no, parseamos
+    if (!body || typeof body !== 'object') {
+      try {
+        const buffers = [];
+        for await (const chunk of req) buffers.push(chunk);
+        const str = Buffer.concat(buffers).toString() || '';
+        body = str ? JSON.parse(str) : {};
+      } catch (e) {
+        // fallback: body stays as-is
+        body = body || {};
+      }
+    }
+
+    const cards = Array.isArray(body.cards) ? body.cards : (body.cards ? [body.cards] : null);
+    if (!cards || cards.length === 0) {
+      return res.status(400).json({ ok: false, msg: "El body debe incluir 'cards' como array (ej: { cards: ['PAN|MM|YYYY|CVV', ...] })" });
+    }
+
+    // Limitar a 20 por petición (seguridad)
+    const batch = cards.slice(0, 20);
+
+    const resultados = [];
+
+    for (const c of batch) {
+      // soporta string "PAN|MM|YYYY|CVV" o objeto { number, expMonth, expYear, cvv }
+      let number, expMonth, expYear, cvv;
+      if (typeof c === "string") {
+        const parts = c.split("|").map(p => p.trim());
+        number = parts[0] || '';
+        expMonth = parts[1] || '';
+        expYear = parts[2] || '';
+        cvv = parts[3] || '';
+      } else if (typeof c === "object" && c !== null) {
+        number = c.number || c.pan || '';
+        expMonth = c.expMonth || c.month || '';
+        expYear = c.expYear || c.year || '';
+        cvv = c.cvv || c.cvc || '';
+      } else {
+        resultados.push({ input: c, masked: null, estado: "Invalid input", ok: false });
+        continue;
+      }
+
+      // Normalizar
+      number = String(number || '').replace(/\s+/g, '');
+      expMonth = String(expMonth || '').replace(/\s+/g, '');
+      expYear = String(expYear || '').replace(/\s+/g, '');
+
+      if (!/^\d{13,19}$/.test(number) || !/^\d{2,4}$/.test(expMonth) || !/^\d{2,4}$/.test(expYear)) {
+        resultados.push({
+          input: number,
+          masked: maskPAN(number),
+          estado: "❌ Formato inválido",
+          ok: false
+        });
+        continue;
+      }
+
+      try {
+        // Llamada a Braintree: crear credit card y verificar
+        const r = await gateway.creditCard.create({
+          number,
+          expirationMonth: expMonth,
+          expirationYear: expYear,
+          cvv,
+          options: { verifyCard: true }
+        });
+
+        if (r && r.success) {
+          const ver = r.creditCard.verification || (r.creditCard.verifications && r.creditCard.verifications[0]);
+          resultados.push({
+            input: number,
+            masked: maskPAN(number),
+            estado: "✅ Live",
+            detalle: ver ? (ver.processorResponseText || ver.status) : "verified",
+            raw: ver || r,
+            ok: true
+          });
+        } else {
+          // Cuando r.success === false
+          resultados.push({
+            input: number,
+            masked: maskPAN(number),
+            estado: "❌ Dead",
+            detalle: r && r.message ? r.message : "rechazada",
+            raw: r,
+            ok: false
+          });
+        }
+      } catch (err) {
+        console.error("verify-braintree-batch card error:", err && err.toString ? err.toString() : err);
+        resultados.push({
+          input: number,
+          masked: maskPAN(number),
+          estado: "⚠️ Error interno",
+          detalle: String(err && (err.message || err)),
+          ok: false
+        });
+      }
+    } // end for
+
+    return res.status(200).json({ ok: true, total: resultados.length, resultados });
+  } catch (err) {
+    console.error("verify-braintree-batch error:", err);
+    return res.status(500).json({ ok: false, msg: "Error interno del servidor" });
+  }
+};
+
+// Helper: enmascara PAN conservando 6 primeros y 4 últimos
+function maskPAN(pan) {
+  const s = String(pan || '').replace(/\D/g, '');
+  if (!s) return '';
+  if (s.length <= 10) return s.replace(/\d/g, '*');
+  const first6 = s.slice(0, 6);
+  const last4 = s.slice(-4);
+  const middle = '*'.repeat(Math.max(0, s.length - 10));
+  return `${first6}${middle}${last4}`;
+}
